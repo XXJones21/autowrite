@@ -1,4 +1,4 @@
-# autowrite
+# Autowrite
 
 A Claude Code plugin that autonomously improves a resume by spinning up company-specific recruiter subagents, scoring the resume against binary hiring evals, mutating one line at a time, and converging across multiple target companies in parallel.
 
