@@ -1,0 +1,17 @@
+# Profile caches -- co-located with resumes, never committed per profiles/.gitkeep policy
+profiles/*.md
+!profiles/.gitkeep
+
+# Run artifacts (in case anyone tests inside the repo tree)
+autowrite-*/
+applications/
+
+# OS junk
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor / IDE
+.vscode/
+.idea/
+*.swp

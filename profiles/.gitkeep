@@ -1,0 +1,7 @@
+# Profile cache
+
+This directory holds cached company profiles produced by the autowrite skill's research subagents. Each file is named `<slug>.md` and follows the schema in `../skills/autowrite/references/profile-template.md`.
+
+Profiles are reused across autowrite runs. Refresh by passing `profile_refresh: true` when invoking the skill, or by deleting the relevant `<slug>.md` file.
+
+Do not commit profiles to a shared repository -- they may include company information aggregated from sources you do not control, and they go stale within ~3 months of `researched_at`.

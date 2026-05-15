@@ -1,0 +1,20 @@
+{
+  "name": "autowrite",
+  "version": "0.5.0",
+  "description": "Two skills for a complete resume workflow. (1) career-intake: human-in-the-loop interview that itemizes a candidate's work into a structured supplementary-context library (interview-notes/, bullets/, narratives/, and a draft resume). (2) autowrite: autonomous evaluator and mutator that scores the resume across multiple target companies, locks per-company variants when convergence holds, then discovers active job openings (with full audit trail of every role considered, included or excluded, and active-status verification on each URL), builds role-specific hiring-manager profiles, and produces opening-tailored resume variants. Locked variants and per-opening resumes render to print-ready HTML alongside markdown sources. Dashboard adds a TOC + per-company index pages. autowrite's mutation engine auto-loads career-intake's library so factual phrasings can be pulled in without fabrication. Modeled on Karpathy's autoresearch methodology applied to resume content with multi-agent orchestration.",
+  "author": {
+    "name": "Joshua Jones",
+    "url": "https://github.com/XXJones21"
+  },
+  "license": "MIT",
+  "keywords": [
+    "claude-code",
+    "resume",
+    "career",
+    "evals",
+    "recruiter",
+    "multi-agent",
+    "autoresearch",
+    "context-engineering"
+  ]
+}
