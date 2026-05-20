@@ -6,6 +6,32 @@ Each round entry has: a topic name, a short purpose statement, an opening questi
 
 ---
 
+## Preflight rounds (run before the default 5-round set when applicable)
+
+### Round 0: Resume ingestion
+
+**Purpose:** When the candidate provides an existing resume, parse it into seeded `bullets/<role-slug>.md` files (plus `_skills.md`, `_projects.md`, custom-section files) and a `interview-notes/<date>-resume-ingest.md` session log. Then ask the candidate whether the resume is up to date or needs more depth on specific roles. The answer narrows -- or skips -- the planned Q&A rounds.
+
+**Parse contract and decision-question shape:** see [resume-ingest-template.md](resume-ingest-template.md). The full ingestion + branching logic lives there; this entry is a pointer.
+
+**When to use:** Any time the user invokes `/career-intake` AND provides an existing resume (gather-context field 3). Round 0 fires automatically before the round-selection step.
+
+**When to skip:** No resume provided. Skip Round 0 entirely and proceed with the existing 5-round Q&A flow.
+
+**How it interacts with the default 5-round set:**
+
+- **If the candidate answers "up to date":** the default 5-round set is dropped entirely. The skill jumps to draft assembly using only the seeded bullets, then offers the Step 4 hand-off options (minus the loop-back, since no rounds ran).
+- **If the candidate answers "needs depth" on N roles:** the default 5-round set is **replaced** by N targeted rounds, one per selected role. Use the "Current role" round for the current role and the "Specific past-role deep-dive" round for past roles. The Career Arc / Flagship Project / Skills+Behavioral / Personal Projects rounds become optional add-ons that the candidate can request via Step 4's loop-back option after the targeted rounds complete.
+- **If the candidate answers "re-run Round 0":** the parse summary is reposted in chat for review, then the decision question is re-asked with options 1 and 2 only.
+
+**Re-invocation behavior:** if `<output-dir>/bullets/` already contains seeded files from a prior Round 0 (detected via the `<!-- career-intake:round-0-seed -->` marker line), Round 0 is skipped on re-invocation and the skill picks up at round selection. The user can force a re-parse with `re_ingest: true`; this overwrites only the lines above the first `## From interview` heading in each per-role file, preserving any interview bullets locked in earlier sessions.
+
+**Output:** seeded `bullets/` files, a single `interview-notes/<date>-resume-ingest.md` session log following the resume-ingest variant in [session-template.md](session-template.md), and an in-memory `roles[]` list that drives the depth-needed multi-select.
+
+**When the resume itself is a PDF:** convert via the PDF-intake step (mirrors autowrite's Step 1.0 -- see `../../autowrite/SKILL.md` Step 1.0). The original PDF is never modified; the converted markdown is saved alongside it. Downstream Round 0 logic operates on the markdown.
+
+---
+
 ## Core rounds (run at least 4 of these in the default 5-round set)
 
 ### Round: Current role
@@ -140,15 +166,29 @@ Each round entry has: a topic name, a short purpose statement, an opening questi
 
 ## Round selection guidance for the default 5-round set
 
-Given a candidate with an existing resume:
+Given a candidate who provided a resume AND just ran Round 0:
 
-1. Read the existing resume.
+The candidate's answer to the Round 0 decision question drives selection. The default-5 heuristic below does NOT apply -- Round 0 has already narrowed (or eliminated) the set:
+
+- **Answered "up to date":** no rounds run. Jump straight to draft assembly.
+- **Answered "needs depth on N roles":** run N targeted rounds, one per selected role. Use the "Current role" round for the current role and "Specific past-role deep-dive" for past roles. Skip Career Arc / Flagship Project / Skills+Behavioral / Personal Projects unless the candidate explicitly adds them via Step 4's loop-back option after the targeted rounds complete.
+- **Answered "re-run Round 0":** re-enter Round 0 with options 1 and 2 only.
+
+The point of Round 0 is to avoid running rounds the seeded bullets already cover. Do not pad the round set "for completeness" -- if the candidate said one role needs depth, run that one round and hand off to draft assembly.
+
+Given a candidate who provided a resume BUT skipped Round 0 (e.g., `re_ingest: false` and seeded bullets already exist from a prior session) OR with NO existing resume:
+
+The Round 0 narrowing does not apply. Use the heuristics below.
+
+**With existing resume (Round 0 skipped on re-invocation):**
+
+1. Read the existing resume and the seeded bullets.
 2. Identify which sections feel thinly-detailed or generically written -- those become priority rounds (often Current Role and Flagship Project).
 3. Identify cross-cutting throughlines that aren't explicit -- those go in the Career Arc round.
 4. Pick Skills/Behavioral and Personal Projects as the rounds that most resumes underdocument.
 5. The 5th slot floats based on the candidate's situation: leadership for senior candidates, a specific past-role for career-switchers, education for non-standard paths, a field-specific round for specialists.
 
-Given a candidate with NO existing resume:
+**With NO existing resume:**
 
 1. Lead with Career Arc to build the spine.
 2. Current Role for the most-recent reference point.

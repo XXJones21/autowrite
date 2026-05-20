@@ -99,8 +99,8 @@ If text extraction is poor (scanned image, heavy formatting, missing words), ann
 2. **Load supplementary context (if present).** Look in the resume's parent directory for any of these subdirectories: `bullets/`, `context/`, `interview-notes/`, `narratives/`. If any exist, read every `.md` file within them. Treat their contents as the candidate's **factual library** -- itemized work, draft bullets, talking points, interview Q&A. The mutation loop may quote or paraphrase from this library when proposing changes that need specifics the resume doesn't currently surface. Hard constraint: only material in the resume + supplementary library is considered "stated." Anything not in either source must be flagged as a question to the candidate before being added to the resume. Announce the supplementary load in chat: "Loaded N supplementary context files from `bullets/`, `interview-notes/` (M total .md files). These will be available to the mutation engine for quoting factual phrasings without fabricating."
 3. Read [references/eval-guide.md](references/eval-guide.md) so you can later evaluate whether researched evals are well-formed.
 4. Read [references/profile-template.md](references/profile-template.md) so you know the profile schema.
-5. Read [references/recruiter-subagent-prompt.md](references/recruiter-subagent-prompt.md), [references/research-subagent-prompt.md](references/research-subagent-prompt.md), [references/job-openings-subagent-prompt.md](references/job-openings-subagent-prompt.md), and [references/hiring-manager-subagent-prompt.md](references/hiring-manager-subagent-prompt.md) so you know exactly how each subagent role will be invoked.
-6. Read [references/resume-html-template.md](references/resume-html-template.md) so you know the print-ready HTML conventions used when rendering locked variants and per-opening resumes.
+5. Read [references/recruiter-subagent-prompt.md](references/recruiter-subagent-prompt.md), [references/research-subagent-prompt.md](references/research-subagent-prompt.md), [references/job-openings-subagent-prompt.md](references/job-openings-subagent-prompt.md), [references/hiring-manager-subagent-prompt.md](references/hiring-manager-subagent-prompt.md), and [references/cover-letter-subagent-prompt.md](references/cover-letter-subagent-prompt.md) so you know exactly how each subagent role will be invoked.
+6. Read [references/resume-html-template.md](references/resume-html-template.md) and [references/cover-letter-html-template.md](references/cover-letter-html-template.md) so you know the print-ready HTML conventions used when rendering locked variants, per-opening resumes, and per-opening cover letters.
 7. **Check for existing run state.** Look ONLY at `<resume-parent-dir>/autowrite-<resume-slug>/`. If that directory exists with a `results.tsv` row at experiment 0 or higher:
 
    - **If `clean_run: true`** (per the context-gathering step 6): archive the existing `autowrite-<resume-slug>/`, `applications/<company>/_company-locked.{md,html}`, `applications/<company>/index.html`, `applications/<company>/results-openings.tsv`, and every per-role subdirectory under `applications/<company>/` (i.e., everything in `applications/<company>/` EXCEPT the `openings-*.json` and `openings-*.md` files) to `<resume-parent-dir>/archive/<YYYY-MM-DD>-<HHMM>/`. The openings JSON / MD remain in place so Step 6a can skip discovery. Announce: "Clean-run mode: archived prior run artifacts to `<archive-path>/`. Discovery output retained at `<openings-paths>`. Starting fresh primary baseline."
@@ -438,28 +438,75 @@ For roles that already pass at baseline (≥90% on the first recruiter scoring),
 
 After each role's sub-loop completes (whether it locked, baselined above threshold, or hit budget), **render the per-role markdown to HTML** at `<role-slug>/resume.html` using [references/resume-html-template.md](references/resume-html-template.md). The HTML is the print-ready submission artifact.
 
-After each role's sub-loop completes, the directory looks like:
+After this step the directory contains the resume pair (markdown + HTML), the profile, the recruiter reports, the JD snapshot, and the per-role sub-changelog. Step 6.5 adds the cover-letter pair to the same directory; the full layout is documented under 6.5 below.
+
+### 6.5. Generate the cover letter per role
+
+For every role where Step 6e rendered a `resume.html` (locked, baseline-above-threshold, or budget-exhausted with at least one kept mutation), spawn a **cover-letter subagent** using [references/cover-letter-subagent-prompt.md](references/cover-letter-subagent-prompt.md). Spawn in parallel within the same batch as 6b/6c/6d/6e -- one subagent per role in the batch, single message with multiple Agent tool calls.
+
+Pass each subagent:
+- Company name and role title
+- JD URL and the team name extracted from the JD (or `"not named"`)
+- Today's date in `Month DD, YYYY` form
+- The full hiring-manager profile markdown (inline)
+- The full JD markdown extract from the discovery JSON (inline)
+- The per-role `resume.md` markdown that 6e just produced (inline) -- **not** `_company-locked.md`; the role-tailored variant is the source of truth for what the candidate is claiming for THIS role
+- The full supplementary-context library that Step 1.1 loaded from `bullets/`, `interview-notes/`, `narratives/`, `context/` (every file's content concatenated inline with relative-path separator lines)
+- The `Candidate review flag` set to `yes` if the role was budget-exhausted at 6d (`flag_for_review` in TSV terms), otherwise `no`
+
+Each subagent returns a markdown letter body (250-400 words; salutation = `Dear <Team> team,` when a team name is set, else `Dear Hiring Manager,`; opening sentence anchors on one resume claim mapped to the strongest hiring-manager-profile eval; body paragraphs echo 2-3 hiring-manager-profile evals in prose with verbatim resume/library evidence; no fabrication).
+
+For each role:
+
+1. **Save the markdown** to `<resume-parent-dir>/applications/<company-slug>/<role-slug>/cover-letter.md`.
+2. **Render to HTML** at `<role-slug>/cover-letter.html` using [references/cover-letter-html-template.md](references/cover-letter-html-template.md). Strip the `## Candidate questions flagged` section (if present) from the HTML render -- those are operational notes, not letter content.
+3. **Append to `sub-changelog.md`**:
+   ```markdown
+   ## Cover letter generated
+
+   **Salutation:** <verbatim salutation line>
+   **Word count:** <N>
+   **Hiring-manager evals echoed:** <names or short labels of the 2-3 evals the letter echoes>
+   **Resume claims used as anchors:** <one or two short labels referring to specific resume bullets or library items>
+   **Candidate questions flagged:** <count, or "none">
+   ```
+   If the subagent flagged any candidate questions, list each one verbatim as a sub-bullet under the count line, so the user can see at a glance which facts the letter avoided inventing.
+4. **Announce in chat** with the letter path and one-line print instructions (same shape as the resume HTML announcement at 6e).
+
+After Step 6.5, each role directory looks like:
 
 ```
 <resume-parent-dir>/applications/<company-slug>/<role-slug>/
   resume.md                          # opening-tailored variant (markdown source)
-  resume.html                        # print-ready variant (the final submission artifact -- print to PDF from browser)
+  resume.html                        # print-ready resume variant (SUBMIT THIS)
+  cover-letter.md                    # per-role cover letter (markdown source)
+  cover-letter.html                  # print-ready cover letter (SUBMIT THIS)
   hiring-manager-profile.md          # role-scoped profile
   recruiter-report-baseline.md       # initial score before sub-mutation
   recruiter-report-final.md          # final score after sub-mutation (or same as baseline if no mutations needed)
   job-posting.md                     # markdown snapshot of the JD (from discovery)
-  sub-changelog.md                   # mutation log for THIS role only
+  sub-changelog.md                   # mutation log + cover-letter generation note for THIS role only
 ```
+
+**Scope rule.** Cover letters are generated **per role only**. There is no `_company-cover-letter.md` at the company level -- a JD-less letter has no specific evals to echo and would invert the discipline autowrite enforces everywhere else. If a candidate later finds a role outside autowrite's discovery, they should re-run the secondary loop with that JD URL added rather than starting from a generic template.
+
+**Skipped roles.** If 6e was skipped for a role (closed, excluded, or structural disqualifier that prevented sub-mutation), 6.5 is also skipped. The `cover_letter` column in `results-openings.tsv` (see 6f) gets `skipped` and the company-level index's Cover letter column shows `-`.
+
+**Flagged-for-review roles.** Roles tagged `flag_for_review` at 6d still get a cover letter. The subagent receives `Candidate review flag: yes`, prepends a `## Manual review needed` banner to the markdown (the HTML template renders it as an amber-bordered banner above the date), and the TSV column gets `flagged` instead of `yes`.
 
 ### 6f. Update the dashboard and announce
 
 After each role completes, append a row to a secondary results file at `<resume-parent-dir>/applications/<company-slug>/results-openings.tsv`:
 
 ```
-role_slug	baseline_pct	final_pct	mutations_kept	status	submission_ready
-ai-engineer-applied	78.6	91.7	3	locked	yes
-research-engineer-evals	66.7	66.7	0	budget_exhausted	flag_for_review
+role_slug	baseline_pct	final_pct	mutations_kept	status	submission_ready	cover_letter
+ai-engineer-applied	78.6	91.7	3	locked	yes	yes
+research-engineer-evals	66.7	66.7	0	budget_exhausted	flag_for_review	flagged
+member-of-technical-staff	91.4	91.4	0	baseline_pass	yes	yes
+infrastructure-engineer	—	—	0	skipped	no	skipped
 ```
+
+The `cover_letter` column takes one of `yes` (letter generated normally), `flagged` (letter generated with a manual-review banner because the resume was budget-exhausted), or `skipped` (Step 6e did not produce a resume so 6.5 was also skipped).
 
 Update the dashboard HTML to show a secondary panel per locked company with the per-role results. Announce each role's completion in chat with a one-line summary so the user can follow along during the hour-long run.
 
@@ -470,8 +517,8 @@ After all discovered roles for a company have been processed (locked, baselined-
 The index must contain:
 
 - A header with the company name, the locked variant link (`_company-locked.html`), and the discovery date(s).
-- A summary line: `N roles discovered (X active, Y excluded, Z closed). M ready to submit. P flagged for manual review.`
-- A table of every opening from `openings-<YYYY-MM-DD>.json` with columns: `#`, `Title`, `Team`, `Location`, `Posted`, `Active`, `Final score`, `Status` (locked / baseline / flagged / closed / excluded), `Resume` (link to `<role-slug>/resume.html` if rendered, otherwise "-"), `JD` (link to original posting).
+- A summary line: `N roles discovered (X active, Y excluded, Z closed). M ready to submit. P flagged for manual review. C cover letters generated (F flagged).`
+- A table of every opening from `openings-<YYYY-MM-DD>.json` with columns: `#`, `Title`, `Team`, `Location`, `Posted`, `Active`, `Final score`, `Status` (locked / baseline / flagged / closed / excluded), `Resume` (link to `<role-slug>/resume.html` if rendered, otherwise "-"), `Cover letter` (link to `<role-slug>/cover-letter.html` if rendered, "flagged" link if the row's `cover_letter` column is `flagged`, otherwise "-"), `JD` (link to original posting).
 - A footer noting that the markdown sources live alongside each HTML file for editing.
 
 The page uses the same self-contained HTML conventions as the resume template (single file, inline CSS, no external dependencies, no images). Styling is similar to the dashboard but tuned for navigation rather than charts:
@@ -520,7 +567,7 @@ When the user returns or the loop stops, present:
 3. **Total experiments run** across both loops, kept vs discarded.
 4. **Top 3 mutations that helped most** (from `changelog.md` and per-role `sub-changelog.md` files).
 5. **Per-profile remaining failure patterns:** What each company's recruiter subagent still flags as a gap -- these become interview-prep talking points.
-6. **Submission-ready artifact list:** Full paths to every per-opening `resume.md`. Each is ready to submit to a real job application.
+6. **Submission-ready artifact list:** Full paths to every per-opening `resume.md` AND `cover-letter.md` (and their rendered HTML siblings). Each pair is ready to submit to a real job application -- the resume is the load-bearing artifact, the cover letter is the role-scoped framing wrapper. Flag any role whose `cover_letter` column is `flagged` separately so the user knows to review the manual-review banner before sending.
 7. **The original resume is untouched.** All artifacts live in `<resume-parent-dir>/autowrite-<resume-slug>/` (working dir for primary loop) and `<resume-parent-dir>/applications/` (locked variants + per-opening submission artifacts).
 8. **Profile cache state:** Which company profiles were researched fresh, which used cache; same for hiring-manager profiles.
 9. **Location of `results.tsv`, `changelog.md`, `dashboard.html`, and per-company `results-openings.tsv`** for reference.
@@ -578,6 +625,8 @@ Each active profile gets its own working file so per-profile mutations do not co
     ai-engineer-applied/
       resume.md                        # opening-tailored variant markdown source
       resume.html                      # print-ready opening-tailored variant (SUBMIT THIS)
+      cover-letter.md                  # per-role cover letter markdown source
+      cover-letter.html                # print-ready cover letter (SUBMIT THIS)
       hiring-manager-profile.md
       recruiter-report-baseline.md
       recruiter-report-final.md
@@ -592,7 +641,7 @@ Each active profile gets its own working file so per-profile mutations do not co
     ...
 ```
 
-The `applications/` tree is the **final output surface** the user submits from. Each `resume.html` under a role slug is the print-ready submission artifact -- open in a browser, Ctrl+P / Cmd+P, Save as PDF. The markdown source sits next to it for re-editing if needed.
+The `applications/` tree is the **final output surface** the user submits from. Each `resume.html` and `cover-letter.html` pair under a role slug is the print-ready submission set -- open each in a browser, Ctrl+P / Cmd+P, Save as PDF. The markdown sources sit next to them for re-editing if needed. There is no company-level cover letter; cover letters are bound to a specific JD + hiring-manager profile, so they only exist per role.
 
 **The original resume is NEVER modified.** Mutations happen on the working files in the primary-loop tree. Locked variants and opening-tailored variants live in the `applications/` tree. The user reviews, diffs, and manually applies changes if they choose. Do NOT offer to overwrite the original. Do NOT copy a working file over the original.
 
@@ -647,12 +696,19 @@ Result: xAI flipped 1 eval to pass. Anthropic and OpenAI unchanged. **Anthropic 
 - `member-of-technical-staff`: baseline 86.7%. 1 sub-mutation. Locks at 93.3%.
 - `infrastructure-engineer`: baseline 71.4%. 5 sub-mutations exhaust budget at 78.6%. Flagged for manual review.
 
+**6.5 -- Per-role cover letters (parallel across all 4 roles):**
+- `ai-engineer-applied`: 312-word letter, salutation "Dear Applied AI team," echoes the evaluation-harness and multi-agent-orchestration evals from the hiring-manager profile, anchors on the Agentic Forensics work and the five-stage reasoning framework. `cover_letter=yes`.
+- `research-engineer-evals`: 287-word letter, salutation "Dear Hiring Manager,", echoes the evaluation-methodology and production-rigor evals, anchors on the A/B/C harness across Claude Code, OpenCode, and Codex. `cover_letter=yes`.
+- `member-of-technical-staff`: 268-word letter, salutation "Dear Hiring Manager,", echoes the breadth and production-agentic-systems evals, anchors on the Rust orchestration server and the 14-products-in-4-months framing. `cover_letter=yes`.
+- `infrastructure-engineer`: 295-word letter with `## Manual review needed` banner because the resume was budget-exhausted at 78.6%; echoes the inherited company evals and flags two candidate questions about specific infra deployment scale in `sub-changelog.md`. `cover_letter=flagged`.
+
 **6a -- OpenAI openings discovery:** 6 roles returned. Repeat per-role processing.
 
 ### Final delivery
 - 3 company profiles researched; 2 companies locked (Anthropic, OpenAI), 1 flagged (xAI)
 - 8 primary-loop experiments, 5 kept, 3 discarded
 - 10 opening-tailored variants across Anthropic and OpenAI; 8 submission-ready, 2 flagged for manual review
+- 10 per-role cover letters; 8 marked `yes`, 2 marked `flagged` (manual-review banner on the budget-exhausted roles)
 - 18 hours of recruiter-equivalent work compressed into a 1-hour autonomous run
 - Top primary mutations: guardrails bullet, concurrency framing
 - Remaining gaps captured per-role in `recruiter-report-final.md` files for interview prep
@@ -671,8 +727,9 @@ A good autowrite run:
 6. **Spawned subagents in parallel** -- baseline scoring across N profiles, per-experiment re-scoring across active profiles, openings discovery per locked company, hiring-manager profile generation per role, opening-level scoring per role. The parallel design is the whole architecture.
 7. **Locked per-profile when consecutive ≥90% confirmed** -- did not chase incremental gains on profiles that had already converged. Locked variants saved as company-canonical artifacts and removed from the active pool.
 8. **Ran the secondary loop on each locked variant** -- discovery, hiring-manager profile, per-opening scoring, sub-mutation loop. Outputs are submission-ready per role.
-9. **Did not overfit** -- the resume got better at getting interviews at these specific companies and these specific roles, not just at passing test evals.
-10. **Ran autonomously, human-on-the-loop** -- did not stop to ask permission between experiments; did not pause when the operator was away. Surfaced state in chat at key transitions (profile locks, role completions) so the operator could pick up the trace on return.
+9. **Generated cover letters only for roles with hiring-manager profiles** -- no generic company-level letter; each letter echoes 2-3 of its role's hiring-manager-profile evals in prose and draws every claim from the resume or the supplementary library, never inventing.
+10. **Did not overfit** -- the resume got better at getting interviews at these specific companies and these specific roles, not just at passing test evals.
+11. **Ran autonomously, human-on-the-loop** -- did not stop to ask permission between experiments; did not pause when the operator was away. Surfaced state in chat at key transitions (profile locks, role completions, cover-letter generation) so the operator could pick up the trace on return.
 
 If a resume "passes" all evals but doesn't actually read better -- the evals are bad, not the resume. Go back to step 2 and re-research with explicit feedback to the research subagent.
 
@@ -686,7 +743,7 @@ If a resume "passes" all evals but doesn't actually read better -- the evals are
 - Optional: cover letter drafts, LinkedIn summary, personal site copy -- can be passed through the same loop with profile evals tailored to that surface
 
 **What autowrite feeds into:**
-- **The applications tree:** submission-ready per-opening resumes. Each `<resume-parent-dir>/applications/<company>/<role>/resume.md` is ready to attach to a real job application.
+- **The applications tree:** submission-ready per-opening resumes AND cover letters. Each `<resume-parent-dir>/applications/<company>/<role>/` directory holds both `resume.md` + `resume.html` and `cover-letter.md` + `cover-letter.html` -- the full pair is ready to attach to a real job application.
 - **Locked company variants:** the canonical per-company resume revisions. Use these as the starting point for any new role at that company that surfaces later.
 - **The cached profiles:** reusable on next run. As long as the resume's surface doesn't change radically, re-running autowrite with the same target companies will hit the cache and skip re-research.
 - **The changelog and sub-changelogs:** an explanation of why your resume reads the way it does at each level (company-canonical and per-opening). Valuable when prepping for interviews -- you know which mutations were applied for which role and why.

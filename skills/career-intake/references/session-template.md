@@ -88,3 +88,97 @@ If multiple rounds happen on the same day, the topic slug disambiguates. Do not 
 ## Example
 
 The schema above is self-documenting -- each section header describes the content that belongs underneath it. When writing the first session log for a new candidate, mirror the section ordering exactly; in the body of each section, use the candidate's own framing verbatim where possible, and keep the assistant's voice for the framing/summary sections. A typical round produces a log of roughly 150-400 words.
+
+---
+
+## Variant: resume-ingest session log (Round 0)
+
+Round 0 (resume ingestion -- see [resume-ingest-template.md](resume-ingest-template.md)) produces a session log with a slightly different shape than the Q&A rounds. There is no interactive Q&A in Round 0 -- the assistant parses the resume and asks one structured AskUserQuestion -- so the standard "Questions and key answers" section is replaced by a "Resume parse summary" section. Other sections collapse to "None this round" where they don't apply.
+
+### File location
+
+```
+<output-dir>/interview-notes/<YYYY-MM-DD>-resume-ingest.md
+```
+
+### Variant schema
+
+```markdown
+# <YYYY-MM-DD> -- Resume Ingest
+
+<One-paragraph framing: the candidate provided a resume at <path>; Round 0 parsed it into N seeded bullet files; the decision-question was asked; the candidate chose <branch>. Written in your voice, 2-3 sentences.>
+
+## Context
+
+- Source resume path: <relative path>
+- Output directory: <relative path>
+- Re-ingest flag: <true | false>
+- Roles parsed: <N>
+- Projects parsed: <N or "none">
+- Custom sections parsed: <list of section slugs or "none">
+
+## Working approach
+
+<One paragraph describing what was parsed: the resume's structure (which sections existed, how roles were shaped, whether dates were present), any edge cases (PDF intake required conversion, a section was unusual, a role had no bullets in the source), and the marker line + frontmatter conventions applied to each seeded file.>
+
+## Resume parse summary
+
+This section replaces "Questions and key answers" for Round 0. List each parsed asset with its slug + a one-line note (typically the first bullet, or "no bullets in source").
+
+### Roles
+1. **<slug-1>** -- <Role title>, <Company> (<dates>). <First-bullet preview or "no bullets in source">.
+2. **<slug-2>** -- <Role title>, <Company> (<dates>). <First-bullet preview or "no bullets in source">.
+...
+
+### Projects (if present)
+- **<project-name-1>** -- <one-line description from resume>
+- ...
+
+### Skills
+<One-line note: "verbatim copy of resume's Skills section saved to _skills.md (N grouped categories)" or similar.>
+
+### Other sections (if present)
+- **<section-slug-1>** -- <verbatim section name from resume>
+- ...
+
+### Summary (if the resume had one)
+<Quote the resume's summary block here verbatim. This is the candidate's overall framing and is the reference for round selection.>
+
+## Decision question and candidate's branch
+
+**Question asked:** "Is this resume up to date, or does it need more depth on specific roles? The current role typically holds the most engram-locked detail -- the things you remember vividly but didn't write down."
+
+**Candidate's answer:** <"Up to date" | "Needs depth on: <comma-separated role slugs>" | "Re-run Round 0">
+
+**Branch taken:**
+- *Up to date:* No Q&A rounds scheduled. Proceeding directly to draft assembly using seeded bullets.
+- *Needs depth on N roles:* Scheduled N targeted rounds (one per selected role, using the Current Role round for the current role and Specific past-role deep-dive for past roles). Skipping default Career Arc / Flagship Project / Skills+Behavioral / Personal Projects rounds.
+- *Re-run Round 0:* Re-posted parse summary in chat; candidate then chose <final branch>.
+
+## Decisions
+
+<Concrete choices made during Round 0. Typically minimal -- "lock the seeded bullets as the resume left them" / "schedule round on <role-slug> next" -- but if any unusual decisions were made during the parse (e.g., merging two role entries that the resume had as separate blocks, treating a sub-section as a custom section), record them here.>
+
+- <Decision 1, or "None this round">
+- ...
+
+## What got cut
+
+<Things the resume contained that were not seeded -- e.g., a deprecated section the candidate said to drop, a paragraph the assistant determined was the candidate's draft notes rather than resume content. Skip this section ("None this round") if nothing was cut.>
+
+## Outstanding work
+
+<Things the candidate or assistant need to follow up on. Examples: a TODO in the resume that needs resolving, a date range that came through as "unknown", a custom section that needs a clearer slug.>
+
+- [ ] <Follow-up 1, or "None this round">
+
+## Side notes for future sessions
+
+<Things observed during the parse that might matter later. The candidate's resume style (terse vs. dense, quantification-heavy vs. narrative), patterns in how they framed roles, anything the assistant noticed that might inform interview rounds.>
+
+<Free-form prose paragraph, or "None this round.">
+```
+
+### Tone for the variant
+
+Same rules as the standard schema apply: assistant's voice in the framing sections, the candidate's framing verbatim in the parse summary. The variant log typically runs 200-500 words depending on resume length. A two-role early-career resume produces a shorter log; a ten-role senior resume produces a longer one.
