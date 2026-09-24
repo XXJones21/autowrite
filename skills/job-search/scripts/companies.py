@@ -51,9 +51,10 @@ def detect_board(url):
                 return None
             return {'board': 'workday', 'host': '%s.%s.myworkdayjobs.com' % (tenant, wd),
                     'tenant': tenant, 'site': site}
-        if m.group(1) in ('embed', 'v1'):
+        board_id = m.group(1).rstrip('.')
+        if board_id in ('embed', 'v1', ''):
             return None
-        return {'board': board, 'board_id': m.group(1)}
+        return {'board': board, 'board_id': board_id}
     return None
 
 

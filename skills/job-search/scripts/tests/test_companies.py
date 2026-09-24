@@ -31,6 +31,8 @@ class DetectTest(unittest.TestCase):
         self.assertIsNone(companies.detect_board(
             'https://nvidia.wd5.myworkdayjobs.com/wday/cxs/nvidia/Site/jobs'))
         self.assertIsNone(companies.detect_board('https://example.com/careers'))
+        self.assertEqual(companies.detect_board('see https://jobs.ashbyhq.com/typesafe-ai.'),
+                         {'board': 'ashby', 'board_id': 'typesafe-ai'})
 
 
 class MergeTest(unittest.TestCase):
