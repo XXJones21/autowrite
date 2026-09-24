@@ -25,7 +25,7 @@ Read the invocation: `daily` means the daily run, a list of row numbers ("build 
 
 1. **Scout.** Spawn the scout per `references/scout-prompt.md`. Then run `merge_scout.py --root <dir>`.
 2. **Fetch.** Run `fetch_boards.py --root <dir>`. Relay any boards not checked.
-3. **Batch.** Run `make_batches.py --root <dir>`.
+3. **Batch.** Run `make_batches.py --root <dir>`. Postings are ordered by the candidate's `titles.include` order, then newest first. When more than about 10 batches would result, pass `--max-batches 10` and tell the candidate how many postings wait for the daily runs; `daily.batch_size` sets postings per batch.
 4. **Judge.** For every batch listed in `search/<date>/batches/index.json`, spawn a fit judge per `references/fit-judge-prompt.md`, all in one message. Load the library once and pass it inline to each. When a judge fails or its verdicts file is missing, re-spawn it once; if it fails again, leave that batch unjudged (its postings stay pending for the next run) and say so.
 5. **Rank.** Run `rank.py --root <dir>`.
 6. **Report.** In chat: counts (ranked, filtered out, boards not checked, closed), the top 10 rows (rank, company, role, pay, checks, gates), the hidden-market company names, and the path to `ranked.md`. Then stop and let the candidate pick.

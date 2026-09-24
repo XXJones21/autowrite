@@ -9,10 +9,22 @@ from state import load_seen, run_dir, to_judge, write_json
 FIELDS = ('id', 'company', 'title', 'locations', 'remote', 'pay_text', 'url')
 
 
+def prioritize(postings, include):
+    """Order by the first matching title keyword's position in titles.include (so the
+    candidate's list order is the judging priority), then newest first."""
+    keys = [k.lower() for k in include or []]
+
+    def rank(p):
+        t = (p.get('title') or '').lower()
+        return next((i for i, k in enumerate(keys) if k in t), len(keys))
+    by_date = sorted(postings, key=lambda p: p.get('posted_date') or '', reverse=True)
+    return sorted(by_date, key=rank)
+
+
 def run(root, date, batch_size=10, max_batches=None, stamp=None):
     stamp = stamp or datetime.datetime.now().strftime('%H%M%S')
-    pending = sorted(to_judge(load_seen(root)), key=lambda p: p.get('posted_date') or '',
-                     reverse=True)
+    include = ((load_yaml(root, 'config.yaml', {}) or {}).get('titles') or {}).get('include')
+    pending = prioritize(to_judge(load_seen(root)), include)
     batches = [pending[i:i + batch_size] for i in range(0, len(pending), batch_size)]
     deferred = []
     if max_batches is not None and len(batches) > max_batches:
@@ -38,12 +50,16 @@ def main(argv=None):
     ap.add_argument('--root', required=True)
     ap.add_argument('--date', default=datetime.date.today().isoformat())
     ap.add_argument('--daily', action='store_true', help='apply daily.max_judge_batches')
+    ap.add_argument('--max-batches', type=int, default=None,
+                    help='judge at most this many batches now; the rest wait for later runs')
+    ap.add_argument('--batch-size', type=int, default=None)
     a = ap.parse_args(argv)
-    cap = None
-    if a.daily:
-        cap = ((load_yaml(a.root, 'config.yaml', {}) or {}).get('daily') or {}).get(
-            'max_judge_batches', 5)
-    names, deferred = run(a.root, a.date, max_batches=cap)
+    daily_cfg = (load_yaml(a.root, 'config.yaml', {}) or {}).get('daily') or {}
+    cap = a.max_batches
+    if a.daily and cap is None:
+        cap = daily_cfg.get('max_judge_batches', 5)
+    size = a.batch_size or daily_cfg.get('batch_size', 10)
+    names, deferred = run(a.root, a.date, batch_size=size, max_batches=cap)
     print('%d batches written, %d postings deferred' % (len(names), len(deferred)))
     for n in names:
         print('  ' + os.path.join(run_dir(a.root, a.date), 'batches', n + '.json'))

@@ -92,5 +92,16 @@ class RunTest(unittest.TestCase):
         self.assertEqual(idx['batches'], ['batch-t1-01'])
 
 
+class PriorityTest(unittest.TestCase):
+    def test_priority_then_date(self):
+        ps = [{'id': 'a', 'title': 'Solutions Architect', 'posted_date': '2026-09-23'},
+              {'id': 'b', 'title': 'Developer Relations Lead', 'posted_date': '2026-09-01'},
+              {'id': 'c', 'title': 'Staff Engineer, Agents', 'posted_date': '2026-09-20'},
+              {'id': 'd', 'title': 'Developer Relations Engineer', 'posted_date': '2026-09-22'},
+              {'id': 'e', 'title': 'Unmatched', 'posted_date': '2026-09-24'}]
+        order = make_batches.prioritize(ps, ['developer relations', 'agent', 'solutions architect'])
+        self.assertEqual([p['id'] for p in order], ['d', 'b', 'c', 'a', 'e'])
+
+
 if __name__ == '__main__':
     unittest.main()
