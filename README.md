@@ -31,6 +31,10 @@ For each locked company:
 5. A **cover-letter subagent** drafts a 250-400 word role-scoped letter that echoes 2-3 of the hiring-manager-profile evals in prose, anchoring every claim to the resume or supplementary-context library (no fabrication; any missing facts surface as candidate questions in the role's `sub-changelog.md`).
 6. Output per role: a `resume.md` AND a `cover-letter.md` (plus print-ready `.html` siblings), ready to submit as a job application.
 
+### job-search: finding what to apply to
+
+`/job-search` fetches open postings from the public job boards (Ashby, Greenhouse, Lever, Workday) of a company list it keeps in `search/companies.yaml`, filters them by your locations and base-pay floor, and has a fit judge check each posting's hard requirements against your `bullets/` library with quoted evidence. A scout adds companies with recent funding or launches that match your edge and drafts a sourced outreach case for the strongest five. Output is `search/<date>/ranked.md`; you pick rows, and only picks go to autowrite. `/job-search daily` checks for new postings only and is cheap enough to schedule each morning.
+
 ### Outputs
 
 - Working primary-loop tree with mutation history (`autowrite-<resume-slug>/`)
