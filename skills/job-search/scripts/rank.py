@@ -26,13 +26,20 @@ def pipeline_tokens(root):
                 continue
             for url in URL_RX.findall(text):
                 tokens.update(t for t in re.split(r'[/?=&_#.]', url) if len(t) >= 3)
+            if fn.endswith('.csv'):
+                tokens.update('row:' + line.lower() for line in text.splitlines() if line.strip())
     return tokens
 
 
 def in_pipeline(posting, tokens):
     native = posting['id'].split(':', 2)[-1]
     last = native.rstrip('/').split('/')[-1]
-    return native in tokens or last in tokens or last.split('_')[-1] in tokens
+    if native in tokens or last in tokens or last.split('_')[-1] in tokens:
+        return True
+    company = (posting.get('company') or '').lower()
+    title = (posting.get('title') or '').lower().strip()
+    return bool(company and title) and any(
+        t.startswith('row:') and company in t and title in t for t in tokens)
 
 
 def merge_verdicts(seen, verdicts, date):

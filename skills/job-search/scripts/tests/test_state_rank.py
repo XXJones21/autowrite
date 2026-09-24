@@ -98,6 +98,13 @@ class PipelineAndUnverifiedTest(unittest.TestCase):
             self.assertTrue(rank.in_pipeline(p1, tokens))
             self.assertTrue(rank.in_pipeline(p2, tokens))
             self.assertFalse(rank.in_pipeline(p3, tokens))
+            with open(os.path.join(root, 'applications', 'Job Tracker.csv'), 'w', encoding='utf-8') as f:
+                f.write('Anthropic,Developer Relations (Claude Code),https://www.anthropic.com/jobs' + chr(10))
+            tokens = rank.pipeline_tokens(root)
+            self.assertTrue(rank.in_pipeline(post('greenhouse:anthropic:9', company='Anthropic',
+                                                  title='Developer Relations'), tokens))
+            self.assertFalse(rank.in_pipeline(post('greenhouse:anthropic:8', company='Anthropic',
+                                                   title='Forward Deployed Engineer'), tokens))
             seen = {}
             record_postings(seen, [p1, p3], '2026-09-24')
             rank.merge_verdicts(seen, [verdict(p1['id']), verdict(p3['id'])], '2026-09-24')
