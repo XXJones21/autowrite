@@ -19,10 +19,8 @@ Candidate's role families (from search/config.yaml):
 - adjacent: [ADJACENT LIST]
 - downweight: [DOWNWEIGHT LIST]
 
-Candidate's factual library (every file below is a fact the candidate has confirmed; nothing else is a fact):
-<<<LIBRARY BEGIN>>>
-[EVERY .md FILE FROM bullets/, interview-notes/, narratives/, context/, EACH PREFIXED WITH "--- <relative path> ---"]
-<<<LIBRARY END>>>
+Candidate's factual library: read every file listed below in full before judging. These files are the facts the candidate has confirmed; nothing else is a fact.
+[ABSOLUTE PATHS OF EVERY .md FILE IN bullets/, interview-notes/, narratives/, context/, ONE PER LINE]
 
 For each posting:
 1. role_family: core, adjacent, or downweight, by what the job does day to day, not by title words alone.
