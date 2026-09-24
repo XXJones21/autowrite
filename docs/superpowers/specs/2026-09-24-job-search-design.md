@@ -53,6 +53,15 @@ daily:
 judge_model: opus                   # fixed for every judge call so scores compare across days
 ```
 
+### Additions settled while planning (2026-09-24)
+
+- `titles.include` / `titles.exclude`: lowercase substring lists applied before judging, so a 600-role board does not reach the judge. Proposed at first run from the confirmed role families.
+- `workday.detail_cap` (default 40): Workday lists postings in pages without descriptions, so each new posting needs its own detail request; the cap bounds that per board per run. Workday entries carry `search_terms` (defaulting to `titles.include`).
+- An empty `locations.keep` disables the location filter, so the plugin's defaults suit any candidate; the candidate's values are set at first run.
+- `seen.json` stores each posting's full normalized record, so postings deferred by the daily cap can be judged on a later day.
+- Judge batches are files: `search/<date>/batches/<name>.json` in, `<name>.verdicts.json` out, listed in `batches/index.json`, so the parent's context holds file paths, not postings.
+- Scripts: `init_search.py`, `fetch_boards.py`, `make_batches.py`, `rank.py`, `recheck.py`, `merge_scout.py`, with shared modules `yaml_lite.py`, `state.py`, `filters.py`, `boards.py`, `companies.py`.
+
 ## Components
 
 ### 1. Board fetcher: `scripts/fetch_boards.py` (code)
