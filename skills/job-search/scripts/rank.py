@@ -30,7 +30,7 @@ def pipeline_tokens(root):
                 for line in text.splitlines():
                     first = line.split(',', 1)[0].strip().strip('"').lower()
                     if first:
-                        tokens.add('row:%s' + chr(9) + '%s' % (first, line.lower()))
+                        tokens.add('row:%s\t%s' % (first, line.lower()))
     return tokens
 
 
@@ -46,7 +46,7 @@ def in_pipeline(posting, tokens):
     for t in tokens:
         if not t.startswith('row:'):
             continue
-        first, _, line = t[4:].partition('	')
+        first, _, line = t[4:].partition('\t')
         if (first == company or company in first or first in company) and title in line:
             return True
     return False
