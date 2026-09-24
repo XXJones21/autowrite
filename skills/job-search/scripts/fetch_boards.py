@@ -10,6 +10,18 @@ from state import (close_missing, load_seen, record_postings, run_dir, save_seen
                    write_json)
 
 
+def _drop_refiltered(seen, prefix, config):
+    """Remove unjudged postings under this board that no longer pass the current filters,
+    so a narrowed config takes effect before judging."""
+    pending = [rec['posting'] for pid, rec in seen.items()
+               if pid.startswith(prefix) and rec['judged'] is None]
+    kept_ids = {p['id'] for p in apply_filters([dict(p) for p in pending], config)[0]}
+    gone = [p['id'] for p in pending if p['id'] not in kept_ids]
+    for pid in gone:
+        del seen[pid]
+    return gone
+
+
 def run(root, date, daily, http):
     config = load_yaml(root, 'config.yaml', None)
     if config is None:
@@ -17,7 +29,7 @@ def run(root, date, daily, http):
     data = load_yaml(root, 'companies.yaml', {'companies': []})
     companies = data.get('companies') or []
     seen = load_seen(root)
-    out, not_checked, closed = [], [], []
+    out, not_checked, closed, dropped = [], [], [], []
     filtered = {'title': 0, 'location': 0, 'pay': 0}
     for c in companies:
         if c.get('disabled') or c.get('board') in (None, 'none'):
@@ -31,7 +43,9 @@ def run(root, date, daily, http):
                                 'failures': c['failures']})
             continue
         c['failures'] = 0
-        closed += close_missing(seen, board_prefix(c), live, date)
+        prefix = board_prefix(c)
+        closed += close_missing(seen, prefix, live, date)
+        dropped += _drop_refiltered(seen, prefix, config)
         kept, stats = apply_filters(posts, config)
         for k, v in stats.items():
             filtered[k] += v
@@ -41,7 +55,7 @@ def run(root, date, daily, http):
               'boards_not_checked': not_checked,
               'flagged_companies': [c.get('name') for c in companies
                                     if int(c.get('failures') or 0) >= 3],
-              'filtered_out': filtered, 'closed': closed}
+              'filtered_out': filtered, 'closed': closed, 'dropped_unjudged': dropped}
     write_json(os.path.join(run_dir(root, date), 'postings.json'), result)
     save_yaml(root, 'companies.yaml', {'companies': companies}, header=COMPANIES_HEADER)
     save_seen(root, seen)

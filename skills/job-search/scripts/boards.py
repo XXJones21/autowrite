@@ -186,7 +186,8 @@ def _fetch_workday(entry, http, seen_ids, config):
         pid = 'workday:%s:%s' % (tenant, path)
         if pid in seen_ids or len(posts) >= cap:
             continue
-        if not title_ok(r.get('title'), titles.get('include'), titles.get('exclude')):
+        if not title_ok(r.get('title'), titles.get('include'), titles.get('exclude'),
+                        titles.get('qualify')):
             continue
         loc_text = r.get('locationsText') or ''
         if (loc_text and not re.match(r'^\d+ Locations$', loc_text)

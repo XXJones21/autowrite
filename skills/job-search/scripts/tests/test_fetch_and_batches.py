@@ -66,6 +66,17 @@ class RunTest(unittest.TestCase):
         self.assertEqual(r2['closed'], ['ashby:weave-os:' + gone])
         self.assertEqual(load_seen(self.root)['ashby:weave-os:' + gone]['status'], 'closed')
 
+    def test_refilter_drops_unjudged(self):
+        fetch_boards.run(self.root, '2026-09-24', False, FakeHttp(self.ashby))
+        before = load_seen(self.root)
+        self.assertTrue(before)
+        save_yaml(self.root, 'config.yaml', {
+            'locations': {'keep': []}, 'pay': {'base_floor_usd': 0},
+            'titles': {'include': ['no title matches this'], 'exclude': []}})
+        r = fetch_boards.run(self.root, '2026-09-24', False, FakeHttp(self.ashby))
+        self.assertEqual(load_seen(self.root), {})
+        self.assertEqual(len(r['dropped_unjudged']), len(before))
+
     def test_batches_and_cap(self):
         fetch_boards.run(self.root, '2026-09-24', False, FakeHttp(self.ashby))
         names, deferred = make_batches.run(self.root, '2026-09-24', batch_size=1,

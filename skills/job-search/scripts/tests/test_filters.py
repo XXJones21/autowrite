@@ -65,6 +65,17 @@ class TitleTest(unittest.TestCase):
         self.assertFalse(title_ok('Developer Relations Intern', ['developer relations'], ['intern']))
         self.assertTrue(title_ok('Anything', [], []))
 
+    def test_qualified_terms(self):
+        q = {'terms': ['product manager', 'technical program manager'],
+             'with': ['developer', 'platform', 'api', 'ai', 'agent', 'tools']}
+        inc = ['product manager', 'technical program manager', 'developer relations']
+        self.assertTrue(title_ok('Product Manager, Developer Platform', inc, [], q))
+        self.assertTrue(title_ok('Product Manager, AI Agents', inc, [], q))
+        self.assertFalse(title_ok('Product Manager, Cybersecurity', inc, [], q))
+        self.assertFalse(title_ok('Technical Program Manager, Rapid Prototyping', inc, [], q))
+        self.assertFalse(title_ok('Product Manager, Maintenance', inc, [], q))
+        self.assertTrue(title_ok('Developer Relations Engineer', inc, [], q))
+
 
 class ApplyTest(unittest.TestCase):
     CONFIG = {'locations': {'keep': KEEP}, 'pay': {'base_floor_usd': 180000},
@@ -81,6 +92,15 @@ class ApplyTest(unittest.TestCase):
         self.assertEqual(stats, {'title': 1, 'location': 1, 'pay': 1})
         self.assertFalse(kept[0]['pay_listed'])
         self.assertTrue(kept[1]['pay_listed'])
+
+    def test_apply_uses_qualify(self):
+        cfg = {'locations': {'keep': []}, 'pay': {}, 'titles': {
+            'include': ['product manager'], 'exclude': [],
+            'qualify': {'terms': ['product manager'], 'with': ['api']}}}
+        kept, stats = apply_filters([posting(title='Product Manager, API'),
+                                     posting(title='Product Manager, Payroll')], cfg)
+        self.assertEqual([p['title'] for p in kept], ['Product Manager, API'])
+        self.assertEqual(stats['title'], 1)
 
     def test_empty_keep_disables_location_filter(self):
         kept, _ = apply_filters([posting(locations=['Tel Aviv, Israel'])],

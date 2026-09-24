@@ -69,13 +69,21 @@ def location_ok(locations, remote, keep):
     return False
 
 
-def title_ok(title, include, exclude):
+def title_ok(title, include, exclude, qualify=None):
+    """Include/exclude are lowercase substrings. A title matched only by a qualify term
+    (for example "product manager") also needs one of qualify['with'] as a whole word."""
     t = (title or '').lower()
     if any(x.lower() in t for x in exclude or []):
         return False
     if not include:
         return True
-    return any(x.lower() in t for x in include)
+    hits = [x.lower() for x in include if x.lower() in t]
+    if not hits:
+        return False
+    terms = [x.lower() for x in (qualify or {}).get('terms') or []]
+    if terms and all(h in terms for h in hits):
+        return _has(_norm(t), [w.lower() for w in (qualify or {}).get('with') or []])
+    return True
 
 
 def apply_filters(postings, config):
@@ -85,7 +93,7 @@ def apply_filters(postings, config):
     include, exclude = titles.get('include') or [], titles.get('exclude') or []
     kept, stats = [], {'title': 0, 'location': 0, 'pay': 0}
     for p in postings:
-        if not title_ok(p.get('title'), include, exclude):
+        if not title_ok(p.get('title'), include, exclude, titles.get('qualify')):
             stats['title'] += 1
         elif not location_ok(p.get('locations') or [], p.get('remote'), keep):
             stats['location'] += 1
