@@ -19,6 +19,21 @@ def merge_verdicts(seen, verdicts, date):
     return n
 
 
+def copy_duplicate_verdicts(seen, duplicates, date):
+    """Give each duplicate posting its representative's verdict (same company, title,
+    and description). Returns the number of postings updated."""
+    n = 0
+    for rep, dups in (duplicates or {}).items():
+        v = (seen.get(rep) or {}).get('verdict')
+        if not v:
+            continue
+        for d in dups:
+            if d in seen:
+                seen[d]['verdict'], seen[d]['judged'] = dict(v, id=d), date
+                n += 1
+    return n
+
+
 def _summary(v):
     checks = v.get('checks') or []
     passed = sum(1 for c in checks if c.get('passed'))
@@ -132,10 +147,11 @@ def run(root, date):
             if fn.endswith('.verdicts.json'):
                 verdicts += read_json(os.path.join(bdir, fn), {}).get('verdicts') or []
     merge_verdicts(seen, verdicts, date)
+    index = read_json(os.path.join(bdir, 'index.json'), None)
+    copy_duplicate_verdicts(seen, (index or {}).get('duplicates'), date)
     rows = build(seen, date)
     meta = read_json(os.path.join(rdir, 'postings.json'), {})
     scout = read_json(os.path.join(rdir, 'scout.json'), None)
-    index = read_json(os.path.join(bdir, 'index.json'), None)
     write_json(os.path.join(rdir, 'ranked.json'), {'date': date, 'rows': rows})
     with open(os.path.join(rdir, 'ranked.md'), 'w', encoding='utf-8', newline='\n') as f:
         f.write(render_md(rows, date, meta, scout, index) + '\n')

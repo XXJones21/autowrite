@@ -1,7 +1,9 @@
 """Split unjudged open postings into fit-judge batches under search/<date>/batches/."""
 import argparse
 import datetime
+import hashlib
 import os
+import re
 
 from companies import load_yaml
 from state import load_seen, run_dir, to_judge, write_json
@@ -21,10 +23,31 @@ def prioritize(postings, include):
     return sorted(by_date, key=rank)
 
 
+def _dupe_key(p):
+    title = re.sub(r'\s+', ' ', (p.get('title') or '').strip().lower())
+    desc = re.sub(r'\s+', ' ', (p.get('description_text') or '')[:6000]).strip()
+    return ((p.get('company') or '').lower(), title,
+            hashlib.sha1(desc.encode('utf-8')).hexdigest())
+
+
+def dedupe(postings):
+    """Keep the first posting of each (company, title, description) group. Returns the
+    representatives and {representative_id: [duplicate_ids]} so one verdict covers all."""
+    reps, groups, first = [], {}, {}
+    for p in postings:
+        k = _dupe_key(p)
+        if k in first:
+            groups.setdefault(first[k], []).append(p['id'])
+        else:
+            first[k] = p['id']
+            reps.append(p)
+    return reps, groups
+
+
 def run(root, date, batch_size=10, max_batches=None, stamp=None):
     stamp = stamp or datetime.datetime.now().strftime('%H%M%S')
     include = ((load_yaml(root, 'config.yaml', {}) or {}).get('titles') or {}).get('include')
-    pending = prioritize(to_judge(load_seen(root)), include)
+    pending, dupes = dedupe(prioritize(to_judge(load_seen(root)), include))
     batches = [pending[i:i + batch_size] for i in range(0, len(pending), batch_size)]
     deferred = []
     if max_batches is not None and len(batches) > max_batches:
@@ -41,7 +64,10 @@ def run(root, date, batch_size=10, max_batches=None, stamp=None):
             rows.append(row)
         write_json(os.path.join(bdir, name + '.json'), {'batch': name, 'postings': rows})
         names.append(name)
-    write_json(os.path.join(bdir, 'index.json'), {'batches': names, 'deferred': deferred})
+    judged_now = {p['id'] for b in batches for p in b}
+    write_json(os.path.join(bdir, 'index.json'), {
+        'batches': names, 'deferred': deferred,
+        'duplicates': {k: v for k, v in dupes.items() if k in judged_now}})
     return names, deferred
 
 

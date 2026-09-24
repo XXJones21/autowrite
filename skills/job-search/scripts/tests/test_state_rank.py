@@ -76,6 +76,17 @@ class RankTest(unittest.TestCase):
             self.assertIn(needle, md)
 
 
+class CopyDupesTest(unittest.TestCase):
+    def test_copy(self):
+        seen = {}
+        record_postings(seen, [post('a'), post('b')], '2026-09-24')
+        rank.merge_verdicts(seen, [verdict('a')], '2026-09-24')
+        n = rank.copy_duplicate_verdicts(seen, {'a': ['b', 'missing']}, '2026-09-24')
+        self.assertEqual(n, 1)
+        self.assertEqual(seen['b']['verdict']['id'], 'b')
+        self.assertEqual(seen['b']['verdict']['checks'], seen['a']['verdict']['checks'])
+
+
 class RecheckTest(unittest.TestCase):
     def test_write_posting(self):
         root = tempfile.mkdtemp()

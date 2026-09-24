@@ -103,5 +103,15 @@ class PriorityTest(unittest.TestCase):
         self.assertEqual([p['id'] for p in order], ['d', 'b', 'c', 'a', 'e'])
 
 
+class DedupeTest(unittest.TestCase):
+    def test_group_duplicates(self):
+        base = {'company': 'Databricks', 'title': 'Sr. FDE - Retail', 'description_text': 'same jd'}
+        ps = [dict(base, id='1'), dict(base, id='2'), dict(base, id='3', title='Sr. FDE - Retail '),
+              dict(base, id='4', description_text='other jd')]
+        reps, dupes = make_batches.dedupe(ps)
+        self.assertEqual([p['id'] for p in reps], ['1', '4'])
+        self.assertEqual(dupes, {'1': ['2', '3']})
+
+
 if __name__ == '__main__':
     unittest.main()
