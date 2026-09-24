@@ -94,17 +94,21 @@ class PipelineAndUnverifiedTest(unittest.TestCase):
             with open(os.path.join(root, 'applications', 'Tracker.csv'), 'w', encoding='utf-8') as f:
                 f.write('Co,Role,https://job-boards.greenhouse.io/co/jobs/555' + chr(10))
             tokens = rank.pipeline_tokens(root)
-            p1, p2, p3 = post('ashby:co:abc-123'), post('greenhouse:co:555'), post('ashby:co:new-1')
+            p1, p2, p3 = (post('ashby:co:abc-123'), post('greenhouse:co:555'),
+                          post('ashby:co:new-1', title='Brand New Role'))
             self.assertTrue(rank.in_pipeline(p1, tokens))
             self.assertTrue(rank.in_pipeline(p2, tokens))
             self.assertFalse(rank.in_pipeline(p3, tokens))
             with open(os.path.join(root, 'applications', 'Job Tracker.csv'), 'w', encoding='utf-8') as f:
                 f.write('Anthropic,Developer Relations (Claude Code),https://www.anthropic.com/jobs' + chr(10))
+                f.write('NVIDIA,Developer Relations Manager,notes mention Ollama' + chr(10))
             tokens = rank.pipeline_tokens(root)
             self.assertTrue(rank.in_pipeline(post('greenhouse:anthropic:9', company='Anthropic',
                                                   title='Developer Relations'), tokens))
             self.assertFalse(rank.in_pipeline(post('greenhouse:anthropic:8', company='Anthropic',
                                                    title='Forward Deployed Engineer'), tokens))
+            self.assertFalse(rank.in_pipeline(post('ashby:ollama:1', company='Ollama',
+                                                   title='Developer Relations'), tokens))
             seen = {}
             record_postings(seen, [p1, p3], '2026-09-24')
             rank.merge_verdicts(seen, [verdict(p1['id']), verdict(p3['id'])], '2026-09-24')
