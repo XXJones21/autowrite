@@ -76,6 +76,40 @@ class RankTest(unittest.TestCase):
             self.assertIn(needle, md)
 
 
+class PipelineAndUnverifiedTest(unittest.TestCase):
+    def test_unverified_breaks_ties(self):
+        seen = {}
+        record_postings(seen, [post('clean', '2026-09-01'), post('open', '2026-09-23')], '2026-09-24')
+        rank.merge_verdicts(seen, [verdict('clean'), verdict('open', unverified=['spanish'])],
+                            '2026-09-24')
+        self.assertEqual([r['id'] for r in rank.build(seen, '2026-09-24')], ['clean', 'open'])
+
+    def test_pipeline_rows_split_out(self):
+        root = tempfile.mkdtemp()
+        try:
+            d = os.path.join(root, 'applications', 'co', 'role')
+            os.makedirs(d)
+            with open(os.path.join(d, 'job-posting.md'), 'w', encoding='utf-8') as f:
+                f.write('URL: https://jobs.ashbyhq.com/co/abc-123' + chr(10))
+            with open(os.path.join(root, 'applications', 'Tracker.csv'), 'w', encoding='utf-8') as f:
+                f.write('Co,Role,https://job-boards.greenhouse.io/co/jobs/555' + chr(10))
+            tokens = rank.pipeline_tokens(root)
+            p1, p2, p3 = post('ashby:co:abc-123'), post('greenhouse:co:555'), post('ashby:co:new-1')
+            self.assertTrue(rank.in_pipeline(p1, tokens))
+            self.assertTrue(rank.in_pipeline(p2, tokens))
+            self.assertFalse(rank.in_pipeline(p3, tokens))
+            seen = {}
+            record_postings(seen, [p1, p3], '2026-09-24')
+            rank.merge_verdicts(seen, [verdict(p1['id']), verdict(p3['id'])], '2026-09-24')
+            rows = rank.build(seen, '2026-09-24', tokens)
+            self.assertEqual([(r['id'], r['in_pipeline']) for r in rows],
+                             [(p3['id'], False), (p1['id'], True)])
+            md = rank.render_md(rows, '2026-09-24', {}, None, None)
+            self.assertIn('## Already in your pipeline', md)
+        finally:
+            shutil.rmtree(root)
+
+
 class CopyDupesTest(unittest.TestCase):
     def test_copy(self):
         seen = {}
